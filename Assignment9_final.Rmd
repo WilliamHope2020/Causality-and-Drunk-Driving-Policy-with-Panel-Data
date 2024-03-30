@@ -1,0 +1,129 @@
+---
+title: "Assignment 9"
+author: "William Hope"
+date: "2023-04-04"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plm)
+library(AER)
+library(stargazer)
+```
+
+# Setup
+```{r}
+data(Fatalities, package='AER')
+pdat <- pdata.frame(Fatalities, index=c("state","year"))
+
+pdat$PCfatal1517 <- with(pdat, fatal1517/pop1517*1000)
+pdat$PCfatal1820 <- with(pdat, fatal1820/pop1820*1000)
+pdat$PCfatal2124 <- with(pdat, fatal2124/pop2124*1000)
+```
+
+In the following measurements of causality, we include miles, spirits, dry, and youngdrivers. Miles implies the likelihood that a driving accident occurs to a driver because the higher the miles, the higher the chance of an accident. We include spirits to see if spirits consumption specifically affects US traffic fatalities. In addition, to understand how dry states implement driving policies, we include the dry variable to account for this difference. The dry variable implies that the weather conditions of the state, such as warmer weather, will increase the likelihood of alcoholic drinking. Lastly, we include the youngdrivers to understand the pool effect of the percent of drivers aged 15–24. We don't include other variables such as income or employment/unemployment because there is much more difficulty in explaining income on traffic fatalities. We also did not include baptist and mormon as the interpretation would be too complicated with other variables. However, it is unlikely that religious persons would likely drink less, but that fact could be counter-intuitive with further evidence. 
+
+# Question 1
+
+We want to estimate the model by OLS.
+
+```{r}
+fit_OLS_PCfatal1517 <- lm(pdat$PCfatal1517~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service,
+data=pdat)
+se1_fit_OLS_PCfatal1517 <- sqrt(diag(vcovHC(fit_OLS_PCfatal1517)))
+
+fit_OLS_PCfatal1820 <- lm(pdat$PCfatal1820~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat)
+se1_fit_OLS_PCfatal1820 <- sqrt(diag(vcovHC(fit_OLS_PCfatal1820)))
+
+stargazer(fit_OLS_PCfatal1517, fit_OLS_PCfatal1820, se=list(se1_fit_OLS_PCfatal1517, se1_fit_OLS_PCfatal1820), header=FALSE, float=FALSE, type = "text", digits=4, model.numbers=FALSE)
+
+```
+
+We want to compare the age groups 15-17 and 18-20. When control for miles, spirits, dry, and youngdrivers, we see that, and accounting for the given policy variables, only the beertax and jail(yes) variables are weakly significant, while the others are not. Comparing to the 18-20, the beertax is not significant, which is odd, while the 15-17 age group is. In addition, we can see that the other policy variables aside from service (yes) is significant. It's clear that the variables, aside from jail (yes), from a negative effect. 
+
+We shouldn't use OLS because it does not account for biases in the data, ommited variables, heterogeneity issues, and so on.
+
+# Question 2
+
+We want to estimate the model using the one-way time fixed effects model. Interpretation below.
+
+```{r}
+fit_time_PCfatal1517 <- plm(pdat$PCfatal1517~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="time")
+se2_fit_time_PCfatal1517 <- sqrt(diag(vcovHC(fit_time_PCfatal1517)))
+
+fit_time_PCfatal1820 <- plm(pdat$PCfatal1820~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="time")
+se2_fit_time_PCfatal1820 <- sqrt(diag(vcovHC(fit_time_PCfatal1820)))
+
+stargazer(fit_time_PCfatal1517, fit_time_PCfatal1820, se=list(se2_fit_time_PCfatal1517, se2_fit_time_PCfatal1820), header=FALSE, float=FALSE, type = "text", digits=4, model.numbers=FALSE)
+
+```
+
+We can see in the comparison that all policy variables but beertax are insignificant. In this example, we account for the time (year) aspect of the data. It is clear that the estimates say breath(yes) and drinkage variables are negative, whereas the beertax and jail(yes), and service(yes) variables are positive. We can say imposing a minimum drinking age, decreases the number of fatalities. Meanwhile, for example, if we interpret the imposement of a mandatory jail time, the data suggests that there is an increase in the number of fatalities. 
+
+To compare the two subsets, it is clear that the minimum drinking age and jail time are significant to the 18-20 age group. This might imply that imposing the minimum drinking age policy reduces the number of traffic fatalities. Unlike the jail time policy, it suggests that it increases the number of traffic fatalities.
+
+# Question 3
+
+We want to estimate the model using the one-way individual fixed effects model. Interpretation below.
+
+```{r}
+
+fit_individual_PCfatal1517 <- plm(pdat$PCfatal1517~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="individual")
+se3_fit_individual_PCfatal1517 <- sqrt(diag(vcovHC(fit_individual_PCfatal1517)))
+
+fit_individual_PCfatal1820 <- plm(pdat$PCfatal1820~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="individual")
+se3_fit_individual_PCfatal1820 <- sqrt(diag(vcovHC(fit_individual_PCfatal1820)))
+
+stargazer(fit_individual_PCfatal1517, fit_individual_PCfatal1820, se=list(se3_fit_individual_PCfatal1517, se3_fit_individual_PCfatal1820), header=FALSE, float=FALSE, type = "text", digits=4, model.numbers=FALSE)
+
+```
+
+We can see in the comparison that all policy variables (for the 15-17 age group) but breath(yes) are significant. In this example, we account for the individual (state) aspect of the data. It is clear that the estimates say beertax and jail(yes) variables are negative, whereas the breath(yes), drinkage, and service(yes) variables are positive. We can say imposing a minimum drinking age, increases the number of fatalities. Meanwhile, for example, if we interpret the imposement of a mandatory jail time, the data suggests that there is an decreases in the number of fatalities. Again, we should expect these policies to decrease the number of fatalities when we impose them.
+
+To compare the two subsets, it is clear that the beertax and jail time are significant to the 18-20 age group. This might imply that imposing the beertax policy reduces the number of traffic fatalities. 
+
+# Question 4
+
+We want to estimate the model using the two-way fixed effects model. Interpretation below.
+
+```{r}
+
+fit_twoways_PCfatal1517 <- plm(pdat$PCfatal1517~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="twoways")
+se4_fit_twoways_PCfatal1517 <- sqrt(diag(vcovHC(fit_twoways_PCfatal1517)))
+
+fit_twoways_PCfatal1820 <- plm(pdat$PCfatal1820~miles+spirits+dry+youngdrivers+beertax+breath+drinkage+jail+service, data=pdat, effect="twoways")
+se4_fit_twoways_PCfatal1820 <- sqrt(diag(vcovHC(fit_twoways_PCfatal1820)))
+
+stargazer(fit_twoways_PCfatal1517, fit_twoways_PCfatal1820, se=list(se4_fit_twoways_PCfatal1517, se4_fit_twoways_PCfatal1820), header=FALSE, float=FALSE, type = "text", digits=4, model.numbers=FALSE)
+
+```
+
+We can see in the comparison that all policy variables (for the 15-17 age group) but drinkage are insignificant. In this example, we account for the two-way (state, year) aspect of the data. It is clear that the estimates say beertax and jail(yes) variables are negative, whereas the breath(yes), drinkage, and service(yes) variables are positive. We can say imposing a minimum drinking age, increases the number of fatalities. Meanwhile, for example, if we interpret the imposement of a mandatory jail time, the data suggests that there is an decreases in the number of fatalities. 
+
+To compare the two subsets, it is clear that the jail time is significant to the 18-20 age group. This might imply that imposing the jail time policy increases the number of traffic fatalities. Again, like the previous methods and analyses, many of these policy variables are insignificant and while some are significant, it may not represent the expectation of the implementation of these policies. 
+
+# Question 5
+
+Now, We want compare all the results except OLS.
+
+```{r}
+
+# Checking to see if time is significant by year
+knitr::kable(summary(fixef(fit_time_PCfatal1517, type='dfirst', vcov=vcovHC)))
+knitr::kable(summary(fixef(fit_time_PCfatal1820, type='dfirst', vcov=vcovHC)))
+
+stargazer(fit_time_PCfatal1517, fit_individual_PCfatal1517, fit_twoways_PCfatal1517, se=list(se2_fit_time_PCfatal1517, se3_fit_individual_PCfatal1517, se4_fit_twoways_PCfatal1517),
+header=FALSE, float=FALSE, type = "text", digits=4,
+column.labels=c("Time","Indiv.","Two-way"), model.numbers=FALSE)
+
+stargazer(fit_time_PCfatal1820, fit_individual_PCfatal1820, fit_twoways_PCfatal1820, se=list(se2_fit_time_PCfatal1820, se3_fit_individual_PCfatal1820, se4_fit_twoways_PCfatal1820), header=FALSE, float=FALSE, type = "text", digits=4, column.labels=c("Time","Indiv.","Two-way"), model.numbers=FALSE)
+
+
+```
+
+We first want to test if time is significant in the dataset. After testing we can see that it is not significant for both groups, but the 15-17 age group starts to increase after 1984, whereas the 18-20 age group decreases until 1988. 
+
+When we compare the methods for the 15-17 and 18-20, there is no clear "best" causal measurement, but it is likely that two-way produces more accurate. While accounting for individuals appears better, we should account for everything including year and state. 
+
+
